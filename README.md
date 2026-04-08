@@ -1,17 +1,8 @@
-# Dashboard Google Sheets - Versão 1
+# Dashboard Google Sheets - Versão 2
 
-Projeto inicial em Streamlit para ler uma planilha Google Sheets publicada e exibir:
-- tabela com os dados
-- total de registros
-- total de colunas
-- lista das colunas encontradas
-- botão para atualizar os dados
-
-## Rodar localmente
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-## Deploy
-Pode subir direto no GitHub e depois conectar no Railway.
+Versão com cards visuais e primeiros blocos analíticos:
+- cards estilizados
+- top técnicos
+- status dos chamados
+- tabela completa
+- leitura automática do Google Sheets
