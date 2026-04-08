@@ -1,15 +1,16 @@
-# Dashboard Google Sheets - V5
+# Dashboard Google Sheets - V6 Restaurado
 
-Versão 5 com layout mais premium e leitura gerencial mais forte:
+Versão restaurada e corrigida após a quebra da V5:
 
-- cards premium com destaque por status
-- comparativo mês atual x anterior
-- ranking dos pontos com mais chamados
+- layout completo restaurado
+- cards funcionando sem HTML aparecendo na tela
 - filtros por técnico, cidade, status e mês
 - evolução mensal
 - ranking por ambiente/região
 - ranking de técnicos
+- ranking dos pontos com mais chamados
+- leitura mais robusta dos status
 - base detalhada
 
 ## Deploy
-Suba no GitHub e o Railway atualiza sozinho.
+Suba os arquivos no GitHub e o Railway atualiza sozinho.
