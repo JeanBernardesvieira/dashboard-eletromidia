@@ -1,8 +1,14 @@
-# Dashboard Google Sheets - Versão 2
+# Dashboard Google Sheets - V4
 
-Versão com cards visuais e primeiros blocos analíticos:
-- cards estilizados
-- top técnicos
+Versão 4 com foco operacional:
+
+- filtros por técnico, cidade, status e mês
+- cards inteligentes
+- evolução mensal
+- ranking de técnicos
+- ranking por ambiente/região
 - status dos chamados
-- tabela completa
-- leitura automática do Google Sheets
+- tabela detalhada
+
+## Deploy
+Suba os arquivos no GitHub e o Railway atualiza sozinho.
