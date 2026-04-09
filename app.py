@@ -23,7 +23,7 @@ def limpar_texto(serie):
 def normalizar_texto(serie):
     return limpar_texto(serie).str.lower()
 
-def render_card(titulo, valor, subtitulo="", cor="#475569"):
+def render_card(titulo, valor, subtitulo="", cor="#475569", altura=150):
     st.markdown(
         f"""
         <div style="
@@ -33,10 +33,14 @@ def render_card(titulo, valor, subtitulo="", cor="#475569"):
             border-radius:18px;
             padding:18px 18px 16px 18px;
             box-shadow:0 6px 18px rgba(15,23,42,0.06);
-            min-height:126px;">
-            <div style="font-size:14px;color:#64748b;font-weight:700;margin-bottom:8px;">{titulo}</div>
-            <div style="font-size:30px;line-height:1.05;color:#0f172a;font-weight:900;word-break:break-word;">{valor}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:10px;">{subtitulo}</div>
+            height:{altura}px;
+            display:flex;
+            flex-direction:column;
+            justify-content:space-between;
+            overflow:hidden;">
+            <div style="font-size:14px;color:#64748b;font-weight:700;line-height:1.25;">{titulo}</div>
+            <div style="font-size:27px;line-height:1.05;color:#0f172a;font-weight:900;word-break:break-word;">{valor}</div>
+            <div style="font-size:12px;color:#64748b;line-height:1.25;">{subtitulo}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -68,29 +72,11 @@ else:
 
 st.markdown("""
 <style>
-.main > div {
-    padding-top: 1rem;
-}
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 2rem;
-    max-width: 1500px;
-}
-div[data-testid="stDataFrame"] {
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid #e5e7eb;
-}
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #0f172a;
-    margin-bottom: 0.4rem;
-}
-.note {
-    color: #64748b;
-    font-size: 0.92rem;
-}
+.main > div { padding-top: 1rem; }
+.block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1500px; }
+div[data-testid="stDataFrame"] { border-radius: 14px; overflow: hidden; border: 1px solid #e5e7eb; }
+.section-title { font-size: 1.1rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.4rem; }
+.note { color: #94a3b8; font-size: 0.92rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,7 +106,6 @@ with st.sidebar:
         if status_sel:
             df_filtrado = df_filtrado[limpar_texto(df_filtrado[col_status]).isin(status_sel)]
 
-    meses_validos = []
     if "MesRef" in df_filtrado.columns:
         meses_validos = sorted([x for x in df_filtrado["MesRef"].dropna().unique() if x not in ("NaT", "Sem data")])
         mes_sel = st.multiselect("Mês", meses_validos)
@@ -147,14 +132,13 @@ st.markdown(
             📊 Dashboard de Chamados
         </div>
         <div style="font-size:15px;color:#e2e8f0;margin-top:10px;">
-            Versão revisada com layout alinhado, cards equilibrados e leitura mais limpa.
+            Cards alinhados e altura padronizada para leitura limpa.
         </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Métricas principais
 total_registros = len(df_filtrado)
 pontos_unicos = df_filtrado[col_ponto].nunique() if col_ponto else 0
 tecnicos_unicos = df_filtrado[col_tecnico].nunique() if col_tecnico else 0
@@ -186,17 +170,14 @@ if col_status:
     status_norm = normalizar_texto(df_filtrado[col_status]).fillna("")
     palavras_fechado = ["fechado", "finalizado", "finalizada", "concluido", "concluída", "encerrado", "encerrada", "resolvido", "resolvida", "ok"]
     palavras_aberto = ["aberto", "aberta", "pendente", "em andamento", "andamento", "novo", "nova", "aguardando", "atrasado", "atrasada", "na fila"]
-
     mask_fechado = status_norm.apply(lambda x: any(p in x for p in palavras_fechado))
     mask_aberto = status_norm.apply(lambda x: any(p in x for p in palavras_aberto))
-
     if mask_fechado.any() or mask_aberto.any():
         fechados = int(mask_fechado.sum())
         abertos = int(mask_aberto.sum())
         status_info = "Leitura automática por palavras-chave"
     contagem_status = limpar_texto(df_filtrado[col_status]).value_counts()
 
-# Evolução mensal
 mes_atual = "-"
 chamados_mes_atual = "-"
 variacao_mensal = "-"
@@ -224,47 +205,45 @@ if "MesRef" in df_filtrado.columns:
         else:
             variacao_mensal = "Primeiro mês"
 
-# Cards linha 1
-l1c1, l1c2, l1c3, l1c4 = st.columns(4)
+l1c1, l1c2, l1c3, l1c4 = st.columns(4, gap="medium")
 with l1c1:
     if abertos is not None:
-        render_card("🔴 Chamados abertos", abertos, status_info, "#dc2626")
+        render_card("🔴 Chamados abertos", abertos, status_info, "#dc2626", 152)
     else:
-        render_card("📦 Total de chamados", total_registros, "Base filtrada", "#475569")
+        render_card("📦 Total de chamados", total_registros, "Base filtrada", "#475569", 152)
 with l1c2:
     if fechados is not None:
-        render_card("🟢 Chamados fechados", fechados, status_info, "#16a34a")
+        render_card("🟢 Chamados fechados", fechados, status_info, "#16a34a", 152)
     elif not contagem_status.empty:
-        render_card("📌 Status principal", contagem_status.index[0], f"{int(contagem_status.iloc[0])} chamados", "#0ea5e9")
+        render_card("📌 Status principal", contagem_status.index[0], f"{int(contagem_status.iloc[0])} chamados", "#0ea5e9", 152)
     else:
-        render_card("📌 Status principal", "-", "Sem coluna útil", "#0ea5e9")
+        render_card("📌 Status principal", "-", "Sem coluna útil", "#0ea5e9", 152)
 with l1c3:
-    render_card("⚡ Tempo médio", f"{str(tempo_medio).replace('.', ',')} min" if tempo_medio is not None else "-", "Performance geral", "#2563eb")
+    render_card("⚡ Tempo médio", f"{str(tempo_medio).replace('.', ',')} min" if tempo_medio is not None else "-", "Performance geral", "#2563eb", 152)
 with l1c4:
-    render_card("👑 Top técnico", top_tecnico, f"{top_qtd} chamados", "#d97706")
+    render_card("👑 Top técnico", top_tecnico, f"{top_qtd} chamados", "#d97706", 152)
 
-# Cards linha 2
-l2c1, l2c2, l2c3, l2c4 = st.columns(4)
+l2c1, l2c2, l2c3, l2c4 = st.columns(4, gap="medium")
 with l2c1:
-    render_card("🏙️ Cidade líder", cidade_top, f"{cidade_top_qtd} chamados", "#64748b")
+    render_card("🏙️ Cidade líder", cidade_top, f"{cidade_top_qtd} chamados", "#64748b", 152)
 with l2c2:
-    render_card("🏢 Pontos únicos", pontos_unicos, "Locais atendidos", "#64748b")
+    render_card("🏢 Pontos únicos", pontos_unicos, "Locais atendidos", "#64748b", 152)
 with l2c3:
-    render_card("🧰 Técnicos únicos", tecnicos_unicos, "Profissionais na base", "#64748b")
+    render_card("🧰 Técnicos únicos", tecnicos_unicos, "Profissionais na base", "#64748b", 152)
 with l2c4:
-    render_card("🌎 Cidades", cidades_unicas, "Cobertura da base", "#64748b")
+    render_card("🌎 Cidades", cidades_unicas, "Cobertura da base", "#64748b", 152)
 
-# Cards executivos limpos
-e1, e2, e3 = st.columns(3)
-with e1:
-    render_card("🗓️ Último mês da base", mes_atual, "Última competência encontrada", "#7c3aed")
-with e2:
-    render_card("📈 Chamados no mês atual", chamados_mes_atual, "Volume do último mês", "#7c3aed")
-with e3:
-    render_card("📊 Variação mensal", variacao_mensal, "Comparado ao mês anterior", "#7c3aed")
+l3c1, l3c2, l3c3 = st.columns(3, gap="medium")
+with l3c1:
+    render_card("🗓️ Último mês da base", mes_atual, "Última competência encontrada", "#7c3aed", 145)
+with l3c2:
+    render_card("📈 Chamados no mês atual", chamados_mes_atual, "Volume do último mês", "#7c3aed", 145)
+with l3c3:
+    render_card("📊 Variação mensal", variacao_mensal, "Comparado ao mês anterior", "#7c3aed", 145)
 
-# Blocos analíticos
-b1, b2 = st.columns([1.2, 1])
+st.markdown("<br>", unsafe_allow_html=True)
+
+b1, b2 = st.columns([1.2, 1], gap="large")
 with b1:
     st.markdown('<div class="section-title">📈 Evolução mensal</div>', unsafe_allow_html=True)
     st.markdown('<div class="note">Volume de chamados por mês.</div>', unsafe_allow_html=True)
@@ -279,38 +258,26 @@ with b2:
     st.markdown('<div class="note">Top 10 agrupamentos operacionais.</div>', unsafe_allow_html=True)
     if col_ambiente:
         ranking_amb = (
-            limpar_texto(df_filtrado[col_ambiente])
-            .value_counts()
-            .rename_axis("Ambiente")
-            .reset_index(name="Chamados")
-            .head(10)
+            limpar_texto(df_filtrado[col_ambiente]).value_counts().rename_axis("Ambiente").reset_index(name="Chamados").head(10)
         )
         st.bar_chart(ranking_amb.set_index("Ambiente"))
         st.dataframe(ranking_amb, use_container_width=True, hide_index=True)
     elif col_cidade:
         ranking_cid = (
-            limpar_texto(df_filtrado[col_cidade])
-            .value_counts()
-            .rename_axis("Cidade")
-            .reset_index(name="Chamados")
-            .head(10)
+            limpar_texto(df_filtrado[col_cidade]).value_counts().rename_axis("Cidade").reset_index(name="Chamados").head(10)
         )
         st.bar_chart(ranking_cid.set_index("Cidade"))
         st.dataframe(ranking_cid, use_container_width=True, hide_index=True)
     else:
         st.info("Não encontrei coluna de ambiente ou cidade.")
 
-b3, b4 = st.columns(2)
+b3, b4 = st.columns(2, gap="large")
 with b3:
     st.markdown('<div class="section-title">🧑‍🔧 Ranking de técnicos</div>', unsafe_allow_html=True)
     st.markdown('<div class="note">Top 10 por quantidade de chamados.</div>', unsafe_allow_html=True)
     if col_tecnico:
         ranking_tecnicos = (
-            limpar_texto(df_filtrado[col_tecnico])
-            .value_counts()
-            .rename_axis("Técnico")
-            .reset_index(name="Chamados")
-            .head(10)
+            limpar_texto(df_filtrado[col_tecnico]).value_counts().rename_axis("Técnico").reset_index(name="Chamados").head(10)
         )
         st.bar_chart(ranking_tecnicos.set_index("Técnico"))
         st.dataframe(ranking_tecnicos, use_container_width=True, hide_index=True)
@@ -331,11 +298,7 @@ st.markdown('<div class="section-title">🚨 Pontos com mais chamados</div>', un
 st.markdown('<div class="note">Top 15 pontos com maior recorrência.</div>', unsafe_allow_html=True)
 if col_ponto:
     ranking_pontos = (
-        limpar_texto(df_filtrado[col_ponto])
-        .value_counts()
-        .rename_axis("Ponto")
-        .reset_index(name="Chamados")
-        .head(15)
+        limpar_texto(df_filtrado[col_ponto]).value_counts().rename_axis("Ponto").reset_index(name="Chamados").head(15)
     )
     st.bar_chart(ranking_pontos.set_index("Ponto"))
     st.dataframe(ranking_pontos, use_container_width=True, hide_index=True)
