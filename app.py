@@ -23,28 +23,14 @@ def limpar_texto(serie):
 def normalizar_texto(serie):
     return limpar_texto(serie).str.lower()
 
-def render_card(titulo, valor, subtitulo="", cor="#475569", altura=150):
-    st.markdown(
-        f"""
-        <div style="
-            background:#ffffff;
-            border:1px solid #e5e7eb;
-            border-left:6px solid {cor};
-            border-radius:18px;
-            padding:18px 18px 16px 18px;
-            box-shadow:0 6px 18px rgba(15,23,42,0.06);
-            height:{altura}px;
-            display:flex;
-            flex-direction:column;
-            justify-content:space-between;
-            overflow:hidden;">
-            <div style="font-size:14px;color:#64748b;font-weight:700;line-height:1.25;">{titulo}</div>
-            <div style="font-size:27px;line-height:1.05;color:#0f172a;font-weight:900;word-break:break-word;">{valor}</div>
-            <div style="font-size:12px;color:#64748b;line-height:1.25;">{subtitulo}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+def card_html(titulo, valor, subtitulo="", cor="#475569"):
+    return f"""
+    <div class="jg-card" style="border-left-color:{cor};">
+        <div class="jg-card-title">{titulo}</div>
+        <div class="jg-card-value">{valor}</div>
+        <div class="jg-card-sub">{subtitulo}</div>
+    </div>
+    """
 
 df = carregar_dados()
 
@@ -72,11 +58,58 @@ else:
 
 st.markdown("""
 <style>
-.main > div { padding-top: 1rem; }
-.block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1500px; }
-div[data-testid="stDataFrame"] { border-radius: 14px; overflow: hidden; border: 1px solid #e5e7eb; }
-.section-title { font-size: 1.1rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.4rem; }
-.note { color: #94a3b8; font-size: 0.92rem; }
+.main > div {padding-top: 1rem;}
+.block-container {padding-top: 1rem; padding-bottom: 2rem; max-width: 1500px;}
+div[data-testid="stDataFrame"] {border-radius: 14px; overflow: hidden; border: 1px solid #e5e7eb;}
+.section-title {font-size: 1.1rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.4rem;}
+.note {color: #94a3b8; font-size: 0.92rem;}
+.jg-grid-4 {
+    display:grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap:14px;
+    margin-bottom:14px;
+}
+.jg-grid-3 {
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap:14px;
+    margin-bottom:18px;
+}
+.jg-card {
+    background:#ffffff;
+    border:1px solid #e5e7eb;
+    border-left:6px solid #475569;
+    border-radius:18px;
+    padding:18px;
+    min-height:152px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    box-shadow:0 6px 18px rgba(15,23,42,0.06);
+    box-sizing:border-box;
+}
+.jg-card-title {
+    font-size:14px;
+    color:#64748b;
+    font-weight:700;
+    line-height:1.25;
+}
+.jg-card-value {
+    font-size:27px;
+    line-height:1.05;
+    color:#0f172a;
+    font-weight:900;
+    word-break:break-word;
+}
+.jg-card-sub {
+    font-size:12px;
+    color:#64748b;
+    line-height:1.25;
+}
+@media (max-width: 1200px) {
+    .jg-grid-4 {grid-template-columns: repeat(2, minmax(0,1fr));}
+    .jg-grid-3 {grid-template-columns: repeat(1, minmax(0,1fr));}
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -132,7 +165,7 @@ st.markdown(
             📊 Dashboard de Chamados
         </div>
         <div style="font-size:15px;color:#e2e8f0;margin-top:10px;">
-            Cards alinhados e altura padronizada para leitura limpa.
+            Cards montados em grid real para acabar com o desalinhamento.
         </div>
     </div>
     """,
@@ -205,43 +238,36 @@ if "MesRef" in df_filtrado.columns:
         else:
             variacao_mensal = "Primeiro mês"
 
-l1c1, l1c2, l1c3, l1c4 = st.columns(4, gap="medium")
-with l1c1:
-    if abertos is not None:
-        render_card("🔴 Chamados abertos", abertos, status_info, "#dc2626", 152)
-    else:
-        render_card("📦 Total de chamados", total_registros, "Base filtrada", "#475569", 152)
-with l1c2:
-    if fechados is not None:
-        render_card("🟢 Chamados fechados", fechados, status_info, "#16a34a", 152)
-    elif not contagem_status.empty:
-        render_card("📌 Status principal", contagem_status.index[0], f"{int(contagem_status.iloc[0])} chamados", "#0ea5e9", 152)
-    else:
-        render_card("📌 Status principal", "-", "Sem coluna útil", "#0ea5e9", 152)
-with l1c3:
-    render_card("⚡ Tempo médio", f"{str(tempo_medio).replace('.', ',')} min" if tempo_medio is not None else "-", "Performance geral", "#2563eb", 152)
-with l1c4:
-    render_card("👑 Top técnico", top_tecnico, f"{top_qtd} chamados", "#d97706", 152)
+cards_l1 = ""
+if abertos is not None:
+    cards_l1 += card_html("🔴 Chamados abertos", abertos, status_info, "#dc2626")
+else:
+    cards_l1 += card_html("📦 Total de chamados", total_registros, "Base filtrada", "#475569")
 
-l2c1, l2c2, l2c3, l2c4 = st.columns(4, gap="medium")
-with l2c1:
-    render_card("🏙️ Cidade líder", cidade_top, f"{cidade_top_qtd} chamados", "#64748b", 152)
-with l2c2:
-    render_card("🏢 Pontos únicos", pontos_unicos, "Locais atendidos", "#64748b", 152)
-with l2c3:
-    render_card("🧰 Técnicos únicos", tecnicos_unicos, "Profissionais na base", "#64748b", 152)
-with l2c4:
-    render_card("🌎 Cidades", cidades_unicas, "Cobertura da base", "#64748b", 152)
+if fechados is not None:
+    cards_l1 += card_html("🟢 Chamados fechados", fechados, status_info, "#16a34a")
+elif not contagem_status.empty:
+    cards_l1 += card_html("📌 Status principal", contagem_status.index[0], f"{int(contagem_status.iloc[0])} chamados", "#0ea5e9")
+else:
+    cards_l1 += card_html("📌 Status principal", "-", "Sem coluna útil", "#0ea5e9")
 
-l3c1, l3c2, l3c3 = st.columns(3, gap="medium")
-with l3c1:
-    render_card("🗓️ Último mês da base", mes_atual, "Última competência encontrada", "#7c3aed", 145)
-with l3c2:
-    render_card("📈 Chamados no mês atual", chamados_mes_atual, "Volume do último mês", "#7c3aed", 145)
-with l3c3:
-    render_card("📊 Variação mensal", variacao_mensal, "Comparado ao mês anterior", "#7c3aed", 145)
+cards_l1 += card_html("⚡ Tempo médio", f"{str(tempo_medio).replace('.', ',')} min" if tempo_medio is not None else "-", "Performance geral", "#2563eb")
+cards_l1 += card_html("👑 Top técnico", top_tecnico, f"{top_qtd} chamados", "#d97706")
 
-st.markdown("<br>", unsafe_allow_html=True)
+cards_l2 = ""
+cards_l2 += card_html("🏙️ Cidade líder", cidade_top, f"{cidade_top_qtd} chamados", "#64748b")
+cards_l2 += card_html("🏢 Pontos únicos", pontos_unicos, "Locais atendidos", "#64748b")
+cards_l2 += card_html("🧰 Técnicos únicos", tecnicos_unicos, "Profissionais na base", "#64748b")
+cards_l2 += card_html("🌎 Cidades", cidades_unicas, "Cobertura da base", "#64748b")
+
+cards_l3 = ""
+cards_l3 += card_html("🗓️ Último mês da base", mes_atual, "Última competência encontrada", "#7c3aed")
+cards_l3 += card_html("📈 Chamados no mês atual", chamados_mes_atual, "Volume do último mês", "#7c3aed")
+cards_l3 += card_html("📊 Variação mensal", variacao_mensal, "Comparado ao mês anterior", "#7c3aed")
+
+st.markdown(f'<div class="jg-grid-4">{cards_l1}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="jg-grid-4">{cards_l2}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="jg-grid-3">{cards_l3}</div>', unsafe_allow_html=True)
 
 b1, b2 = st.columns([1.2, 1], gap="large")
 with b1:
@@ -257,15 +283,11 @@ with b2:
     st.markdown('<div class="section-title">🗺️ Ranking por ambiente / região</div>', unsafe_allow_html=True)
     st.markdown('<div class="note">Top 10 agrupamentos operacionais.</div>', unsafe_allow_html=True)
     if col_ambiente:
-        ranking_amb = (
-            limpar_texto(df_filtrado[col_ambiente]).value_counts().rename_axis("Ambiente").reset_index(name="Chamados").head(10)
-        )
+        ranking_amb = limpar_texto(df_filtrado[col_ambiente]).value_counts().rename_axis("Ambiente").reset_index(name="Chamados").head(10)
         st.bar_chart(ranking_amb.set_index("Ambiente"))
         st.dataframe(ranking_amb, use_container_width=True, hide_index=True)
     elif col_cidade:
-        ranking_cid = (
-            limpar_texto(df_filtrado[col_cidade]).value_counts().rename_axis("Cidade").reset_index(name="Chamados").head(10)
-        )
+        ranking_cid = limpar_texto(df_filtrado[col_cidade]).value_counts().rename_axis("Cidade").reset_index(name="Chamados").head(10)
         st.bar_chart(ranking_cid.set_index("Cidade"))
         st.dataframe(ranking_cid, use_container_width=True, hide_index=True)
     else:
@@ -276,9 +298,7 @@ with b3:
     st.markdown('<div class="section-title">🧑‍🔧 Ranking de técnicos</div>', unsafe_allow_html=True)
     st.markdown('<div class="note">Top 10 por quantidade de chamados.</div>', unsafe_allow_html=True)
     if col_tecnico:
-        ranking_tecnicos = (
-            limpar_texto(df_filtrado[col_tecnico]).value_counts().rename_axis("Técnico").reset_index(name="Chamados").head(10)
-        )
+        ranking_tecnicos = limpar_texto(df_filtrado[col_tecnico]).value_counts().rename_axis("Técnico").reset_index(name="Chamados").head(10)
         st.bar_chart(ranking_tecnicos.set_index("Técnico"))
         st.dataframe(ranking_tecnicos, use_container_width=True, hide_index=True)
     else:
@@ -297,9 +317,7 @@ with b4:
 st.markdown('<div class="section-title">🚨 Pontos com mais chamados</div>', unsafe_allow_html=True)
 st.markdown('<div class="note">Top 15 pontos com maior recorrência.</div>', unsafe_allow_html=True)
 if col_ponto:
-    ranking_pontos = (
-        limpar_texto(df_filtrado[col_ponto]).value_counts().rename_axis("Ponto").reset_index(name="Chamados").head(15)
-    )
+    ranking_pontos = limpar_texto(df_filtrado[col_ponto]).value_counts().rename_axis("Ponto").reset_index(name="Chamados").head(15)
     st.bar_chart(ranking_pontos.set_index("Ponto"))
     st.dataframe(ranking_pontos, use_container_width=True, hide_index=True)
 else:

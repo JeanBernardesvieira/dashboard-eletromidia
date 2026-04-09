@@ -1,7 +1,6 @@
-# Dashboard Google Sheets - V8 Cards Alinhados
+# Dashboard Google Sheets - V9 Grid Real
 
-Ajuste fino focado em alinhamento:
-- altura padronizada dos cards
-- linhas com 4 / 4 / 3 cards bem distribuídas
-- melhor equilíbrio visual
-- rankings e filtros preservados
+Correção de alinhamento com cards em grid HTML real:
+- linhas 4 / 4 / 3 em grid
+- mesma altura real para todos os cards
+- sem depender do comportamento de colunas do Streamlit
