@@ -1,6 +1,6 @@
-# Dashboard Google Sheets - V9 Grid Real
+# Dashboard Google Sheets - V10 HTML Fix
 
-Correção de alinhamento com cards em grid HTML real:
-- linhas 4 / 4 / 3 em grid
-- mesma altura real para todos os cards
-- sem depender do comportamento de colunas do Streamlit
+Versão corrigida para:
+- renderizar os cards HTML corretamente
+- manter grid 4 / 4 / 3
+- evitar exibir tags HTML na tela

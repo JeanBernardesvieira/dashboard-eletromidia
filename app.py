@@ -25,12 +25,12 @@ def normalizar_texto(serie):
 
 def card_html(titulo, valor, subtitulo="", cor="#475569"):
     return f"""
-    <div class="jg-card" style="border-left-color:{cor};">
-        <div class="jg-card-title">{titulo}</div>
-        <div class="jg-card-value">{valor}</div>
-        <div class="jg-card-sub">{subtitulo}</div>
-    </div>
-    """
+<div class="jg-card" style="border-left-color:{cor};">
+    <div class="jg-card-title">{titulo}</div>
+    <div class="jg-card-value">{valor}</div>
+    <div class="jg-card-sub">{subtitulo}</div>
+</div>
+"""
 
 df = carregar_dados()
 
@@ -149,28 +149,25 @@ with st.sidebar:
     st.write(f"**Registros:** {len(df_filtrado)}")
     st.write(f"**Colunas:** {len(df_filtrado.columns)}")
 
-st.markdown(
-    """
-    <div style="
-        padding:22px 24px;
-        border-radius:24px;
-        background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
-        color:white;
-        box-shadow:0 12px 30px rgba(15,23,42,0.18);
-        margin-bottom:18px;">
-        <div style="font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:#cbd5e1;font-weight:800;">
-            Painel operacional
-        </div>
-        <div style="font-size:42px;line-height:1.05;font-weight:900;margin-top:6px;">
-            📊 Dashboard de Chamados
-        </div>
-        <div style="font-size:15px;color:#e2e8f0;margin-top:10px;">
-            Cards montados em grid real para acabar com o desalinhamento.
-        </div>
+st.markdown("""
+<div style="
+    padding:22px 24px;
+    border-radius:24px;
+    background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+    color:white;
+    box-shadow:0 12px 30px rgba(15,23,42,0.18);
+    margin-bottom:18px;">
+    <div style="font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:#cbd5e1;font-weight:800;">
+        Painel operacional
     </div>
-    """,
-    unsafe_allow_html=True
-)
+    <div style="font-size:42px;line-height:1.05;font-weight:900;margin-top:6px;">
+        📊 Dashboard de Chamados
+    </div>
+    <div style="font-size:15px;color:#e2e8f0;margin-top:10px;">
+        Versão corrigida com renderização HTML funcionando de verdade.
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 total_registros = len(df_filtrado)
 pontos_unicos = df_filtrado[col_ponto].nunique() if col_ponto else 0
@@ -217,8 +214,9 @@ variacao_mensal = "-"
 evolucao = pd.DataFrame()
 
 if "MesRef" in df_filtrado.columns:
+    validos = [x for x in df_filtrado["MesRef"].unique() if x not in ("NaT", "Sem data")]
     evolucao = (
-        df_filtrado[df_filtrado["MesRef"].isin([x for x in df_filtrado["MesRef"].unique() if x not in ("NaT", "Sem data")])]["MesRef"]
+        df_filtrado[df_filtrado["MesRef"].isin(validos)]["MesRef"]
         .value_counts()
         .sort_index()
         .rename_axis("Mês")
@@ -265,9 +263,9 @@ cards_l3 += card_html("🗓️ Último mês da base", mes_atual, "Última compet
 cards_l3 += card_html("📈 Chamados no mês atual", chamados_mes_atual, "Volume do último mês", "#7c3aed")
 cards_l3 += card_html("📊 Variação mensal", variacao_mensal, "Comparado ao mês anterior", "#7c3aed")
 
-st.markdown(f'<div class="jg-grid-4">{cards_l1}</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="jg-grid-4">{cards_l2}</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="jg-grid-3">{cards_l3}</div>', unsafe_allow_html=True)
+st.markdown(f"""<div class="jg-grid-4">{cards_l1}</div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="jg-grid-4">{cards_l2}</div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="jg-grid-3">{cards_l3}</div>""", unsafe_allow_html=True)
 
 b1, b2 = st.columns([1.2, 1], gap="large")
 with b1:
