@@ -1,16 +1,13 @@
-# Dashboard Google Sheets - V6 Restaurado
+# Dashboard Google Sheets - V7 Pente Fino
 
-Versão restaurada e corrigida após a quebra da V5:
+Versão revisada com foco em alinhamento visual:
 
-- layout completo restaurado
-- cards funcionando sem HTML aparecendo na tela
-- filtros por técnico, cidade, status e mês
-- evolução mensal
-- ranking por ambiente/região
-- ranking de técnicos
-- ranking dos pontos com mais chamados
-- leitura mais robusta dos status
-- base detalhada
+- cards alinhados e consistentes
+- bloco executivo corrigido
+- layout mais limpo
+- filtros mantidos
+- rankings e evolução preservados
+- leitura robusta de status
 
 ## Deploy
 Suba os arquivos no GitHub e o Railway atualiza sozinho.
