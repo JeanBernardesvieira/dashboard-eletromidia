@@ -349,12 +349,13 @@ tbody td { padding: 10px 14px; color: var(--text); vertical-align: middle; }
 
 <script>
 // ── Estado global ──────────────────────────────────────────────────────────────
-let currentData   = null;
-let allChamados   = [];
-let filteredRows  = [];
-let currentPage   = 1;
-const PAGE_SIZE   = 50;
-let charts        = {};
+let currentMetricas = null;
+let allChamados     = [];
+let filteredRows    = [];
+let currentPage     = 1;
+const PAGE_SIZE     = 50;
+let charts          = {};
+let abaAtual        = '';
 
 // ── Navegação ──────────────────────────────────────────────────────────────────
 function showSection(id, btn) {
@@ -366,6 +367,7 @@ function showSection(id, btn) {
   const subs   = { dashboard: 'Visão geral do período selecionado', chamados: 'Registros detalhados', analistas: 'Desempenho por técnico', evolucao: 'Comparativo entre períodos' };
   document.getElementById('section-title').textContent = titles[id] || id;
   document.getElementById('section-sub').textContent   = subs[id] || '';
+  if (id === 'chamados' && allChamados.length === 0 && abaAtual) loadChamados(abaAtual);
   if (id === 'evolucao') loadEvolucao();
 }
 
@@ -375,29 +377,40 @@ async function loadPeriodos() {
     const res  = await fetch('/api/periodos');
     const list = await res.json();
     const sel  = document.getElementById('period-select');
-    sel.innerHTML = list.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
-    if (list.length > 0) loadPeriodo(list[list.length - 1].id);
+    // server.js v3 retorna { aba, label, ano, mes, total }
+    sel.innerHTML = list.map(p => `<option value="${p.aba}">${p.label}</option>`).join('');
+    if (list.length > 0) {
+      abaAtual = list[list.length - 1].aba;
+      sel.value = abaAtual;
+      loadPeriodo(abaAtual);
+    }
   } catch (e) {
     console.error('Erro ao carregar períodos:', e);
+    document.getElementById('dash-loading').innerHTML = '<div class="empty-icon">⚠️</div><p>Erro ao conectar com a API</p>';
   }
 }
 
 async function onPeriodChange() {
-  const id = document.getElementById('period-select').value;
-  if (id) loadPeriodo(id);
+  abaAtual = document.getElementById('period-select').value;
+  allChamados = [];
+  filteredRows = [];
+  if (abaAtual) loadPeriodo(abaAtual);
 }
 
-async function loadPeriodo(periodo) {
+async function loadPeriodo(aba) {
   document.getElementById('dash-loading').style.display = 'block';
   document.getElementById('dash-content').style.display = 'none';
   try {
-    const res  = await fetch('/api/data/' + periodo);
-    const data = await res.json();
-    currentData = data;
-    allChamados = data.chamados || [];
-    renderDashboard(data);
-    renderChamados();
-    renderAnalistas(data.metricas.porTecnico);
+    // server.js v3: rota de métricas separada
+    const res  = await fetch('/api/metricas/' + encodeURIComponent(aba));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const m = await res.json();
+    currentMetricas = m;
+    renderDashboard(m);
+    // Se a aba de analistas estiver ativa, re-renderizar
+    if (document.getElementById('sec-analistas').classList.contains('active')) {
+      renderAnalistas(m.porTecnico);
+    }
     document.getElementById('sync-label').textContent = 'Atualizado';
     document.getElementById('dash-loading').style.display = 'none';
     document.getElementById('dash-content').style.display = 'block';
@@ -407,41 +420,71 @@ async function loadPeriodo(periodo) {
   }
 }
 
+async function loadChamados(aba) {
+  try {
+    // Carregar todos de uma vez para filtros locais (max 2000)
+    const res  = await fetch('/api/chamados/' + encodeURIComponent(aba) + '?page=1&limit=2000');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    // Mapear colunas do Google Sheets para campos usados na tabela
+    allChamados = (data.dados || []).map(r => ({
+      numero:        r['Número'] || r['Numero'] || '',
+      ponto:         r['Ponto'] || '',
+      cidade:        r['Cidade'] || '',
+      nivel:         r['Nível'] || r['Nivel'] || '',
+      tecnico:       r['Técnico'] || r['Tecnico'] || '',
+      tipoAtividade: r['Tipo de Atividade'] || '',
+      status:        r['Status'] || '',
+      duracaoMin:    parseFloat(r['Duração Exec. em minutos'] || r['Duracao Exec. em minutos'] || 0),
+      dataEncerramen:r['Data Encerramento'] || '',
+    }));
+    renderChamados();
+  } catch (e) {
+    console.error('Erro ao carregar chamados:', e);
+  }
+}
+
 async function refreshData() {
-  await fetch('/api/refresh');
-  const id = document.getElementById('period-select').value;
-  if (id) loadPeriodo(id);
+  document.getElementById('sync-label').textContent = 'Atualizando...';
+  await fetch('/api/recarregar', { method: 'POST' });
+  allChamados = [];
+  filteredRows = [];
+  evolucaoLoaded = false;
+  if (abaAtual) loadPeriodo(abaAtual);
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
-function renderDashboard(data) {
-  const m = data.metricas;
-  const taxaConclusao = m.total > 0 ? Math.round((m.concluidos / m.total) * 100) : 0;
+function renderDashboard(m) {
+  // m = resposta de /api/metricas/:aba (server.js v3)
+  // porTecnico é array de pares: [[nome, total], ...]
+  // porTipo é array de pares: [[tipo, total], ...]
+  // porCidade é array de pares: [[cidade, total], ...]
 
-  const topTecnico = Object.entries(m.porTecnico).sort((a,b) => b[1].total - a[1].total)[0];
-  const topCidade  = Object.entries(m.porCidade).sort((a,b) => b[1] - a[1])[0];
+  const topTecnico = m.porTecnico && m.porTecnico.length > 0 ? m.porTecnico[0] : ['—', 0];
+  const topCidade  = m.porCidade  && m.porCidade.length  > 0 ? m.porCidade[0]  : ['—', 0];
 
   document.getElementById('kpis').innerHTML = `
-    <div class="kpi c1"><div class="kpi-icon">🎫</div><div class="kpi-val">${m.total.toLocaleString('pt-BR')}</div><div class="kpi-label">Total de Chamados</div></div>
-    <div class="kpi c2"><div class="kpi-icon">✅</div><div class="kpi-val">${m.concluidos.toLocaleString('pt-BR')}</div><div class="kpi-label">Concluídos</div><div class="kpi-sub">${taxaConclusao}% do total</div></div>
-    <div class="kpi c3"><div class="kpi-icon">⏱️</div><div class="kpi-val">${m.tempoMedio}</div><div class="kpi-label">Tempo Médio (min)</div></div>
-    <div class="kpi c4"><div class="kpi-icon">👥</div><div class="kpi-val">${Object.keys(m.porTecnico).length}</div><div class="kpi-label">Técnicos Ativos</div></div>
-    <div class="kpi c5"><div class="kpi-icon">🏆</div><div class="kpi-val">${topTecnico ? topTecnico[1].total : '-'}</div><div class="kpi-label">Maior Volume</div><div class="kpi-sub">${topTecnico ? topTecnico[0].split(' ')[0] : ''}</div></div>
-    <div class="kpi c6"><div class="kpi-icon">🌆</div><div class="kpi-val">${topCidade ? topCidade[1] : '-'}</div><div class="kpi-label">Top Cidade</div><div class="kpi-sub">${topCidade ? topCidade[0] : ''}</div></div>
+    <div class="kpi c1"><div class="kpi-icon">🎫</div><div class="kpi-val">${(m.total||0).toLocaleString('pt-BR')}</div><div class="kpi-label">Total de Chamados</div></div>
+    <div class="kpi c2"><div class="kpi-icon">✅</div><div class="kpi-val">${(m.concluidos||0).toLocaleString('pt-BR')}</div><div class="kpi-label">Concluídos</div><div class="kpi-sub">${m.taxaConclusao||0}% do total</div></div>
+    <div class="kpi c3"><div class="kpi-icon">⏱️</div><div class="kpi-val">${m.tempoMedio||0}</div><div class="kpi-label">Tempo Médio (min)</div></div>
+    <div class="kpi c4"><div class="kpi-icon">👥</div><div class="kpi-val">${m.totalTecnicos||0}</div><div class="kpi-label">Técnicos Ativos</div></div>
+    <div class="kpi c5"><div class="kpi-icon">🏆</div><div class="kpi-val">${topTecnico[1]}</div><div class="kpi-label">Maior Volume</div><div class="kpi-sub">${topTecnico[0].split(' ')[0]}</div></div>
+    <div class="kpi c6"><div class="kpi-icon">🌆</div><div class="kpi-val">${topCidade[1]}</div><div class="kpi-label">Top Cidade</div><div class="kpi-sub">${topCidade[0]}</div></div>
   `;
 
-  // Chart: Por Nível
-  const nivelLabels = Object.keys(m.porNivel).sort();
+  // Chart: Por Nível (porNivel é objeto { N0: 10, N1: 20, ... })
+  const nivelLabels = Object.keys(m.porNivel||{}).sort();
   const nivelColors = { N0:'#4f8ef7', N1:'#00d4aa', N2:'#f97316', N3:'#ef4444' };
   renderChart('chart-nivel', 'doughnut', nivelLabels, nivelLabels.map(k => m.porNivel[k]), nivelLabels.map(k => nivelColors[k] || '#64748b'));
 
-  // Chart: Por Atividade (top 8)
-  const atividadeEntries = Object.entries(m.porAtividade).sort((a,b) => b[1]-a[1]).slice(0,8);
+  // Chart: Por Atividade — porTipo é array de pares [[tipo, total], ...]
+  const porTipo = m.porTipo || [];
+  const atividadeEntries = porTipo.slice(0, 8);
   renderChart('chart-atividade', 'bar', atividadeEntries.map(e => e[0]), atividadeEntries.map(e => e[1]), '#4f8ef7', true);
 
-  // Chart: Top 10 Técnicos
-  const tecEntries = Object.entries(m.porTecnico).sort((a,b) => b[1].total - a[1].total).slice(0,10);
-  renderChart('chart-tecnicos', 'bar', tecEntries.map(e => e[0].split(' ')[0]), tecEntries.map(e => e[1].total), '#00d4aa', true);
+  // Chart: Top 10 Técnicos — porTecnico é array de pares [[nome, total], ...]
+  const tecEntries = (m.porTecnico || []).slice(0, 10);
+  renderChart('chart-tecnicos', 'bar', tecEntries.map(e => e[0].split(' ')[0]), tecEntries.map(e => e[1]), '#00d4aa', true);
 }
 
 function renderChart(id, type, labels, data, color, horizontal = false) {
@@ -474,6 +517,11 @@ function renderChart(id, type, labels, data, color, horizontal = false) {
 
 // ── Tabela Chamados ────────────────────────────────────────────────────────────
 function renderChamados() {
+  // Carregar dados se ainda não foram carregados para esta aba
+  if (allChamados.length === 0 && abaAtual) {
+    loadChamados(abaAtual);
+    return;
+  }
   // Popular filtro de técnicos
   const tecnicos = [...new Set(allChamados.map(c => c.tecnico).filter(Boolean))].sort();
   const selTec = document.getElementById('f-tecnico');
@@ -545,30 +593,30 @@ function renderTable() {
 
 // ── Analistas ──────────────────────────────────────────────────────────────────
 function renderAnalistas(porTecnico) {
-  const entries = Object.entries(porTecnico).sort((a,b) => b[1].total - a[1].total);
-  const maxTotal = entries[0]?.[1].total || 1;
+  // porTecnico é array de pares [[nome, total], ...] do server.js v3
+  const entries  = Array.isArray(porTecnico) ? porTecnico : Object.entries(porTecnico);
+  const maxTotal = entries[0]?.[1] || 1;
 
-  document.getElementById('analistas-grid').innerHTML = entries.map(([nome, s]) => {
+  document.getElementById('analistas-grid').innerHTML = entries.map(([nome, total]) => {
     const initials = nome.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
-    const tempoMedio = s.total > 0 ? Math.round(s.duracaoTotal / s.total) : 0;
-    const pct = Math.round((s.total / maxTotal) * 100);
+    const pct = Math.round((total / maxTotal) * 100);
     return `
       <div class="analista-card">
         <div class="analista-header">
           <div class="analista-avatar">${initials}</div>
           <div>
             <div class="analista-name">${nome}</div>
-            <div class="analista-sub">${s.concluidos} concluídos</div>
+            <div class="analista-sub">${total} chamados</div>
           </div>
         </div>
         <div class="analista-stats">
           <div class="analista-stat">
-            <div class="analista-stat-val">${s.total}</div>
+            <div class="analista-stat-val">${total}</div>
             <div class="analista-stat-label">Total</div>
           </div>
           <div class="analista-stat">
-            <div class="analista-stat-val">${tempoMedio}min</div>
-            <div class="analista-stat-label">Tempo Médio</div>
+            <div class="analista-stat-val">${pct}%</div>
+            <div class="analista-stat-label">% do Top</div>
           </div>
         </div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
