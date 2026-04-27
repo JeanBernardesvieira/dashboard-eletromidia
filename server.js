@@ -31,6 +31,7 @@ const cache = {};       // { 'Janeiro': { dados, metricas, updatedAt } }
 let periodosDisponiveis = [];
 
 // ─── Leitura de uma aba do Google Sheets ──────────────────────────────────────
+// Retorna { rows, sig } — sig é a assinatura dos dados retornados pelo Google
 async function lerAba(nomeAba) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(nomeAba)}`;
   const resp = await axios.get(url, {
@@ -39,12 +40,13 @@ async function lerAba(nomeAba) {
   });
   const raw  = resp.data;
   const json = JSON.parse(raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+  const sig   = json.sig || '';
   const table = json.table || {};
   const cols  = (table.cols || []).map(c => c.label || '');
   const rows  = (table.rows || []).map(r =>
     Object.fromEntries(cols.map((col, i) => [col, r.c?.[i]?.v ?? null]))
   );
-  return rows;
+  return { rows, sig };
 }
 
 // ─── Cálculo de métricas ──────────────────────────────────────────────────────
@@ -109,9 +111,26 @@ function calcularMetricas(rows) {
 // ─── Carregar todas as abas disponíveis ───────────────────────────────────────
 async function carregarTodos() {
   const disponiveis = [];
+  let sigPrimeiraAba = null;  // sig da primeira aba carregada com sucesso
+
   for (const { aba, label, ano, mes } of ABAS_MESES) {
     try {
-      const rows = await lerAba(aba);
+      const { rows, sig } = await lerAba(aba);
+
+      // ── Detecção de aba inexistente ──────────────────────────────────────────
+      // O Google Sheets retorna silenciosamente os dados da PRIMEIRA aba quando
+      // a aba solicitada não existe. Detectamos isso comparando a "sig" (hash
+      // dos dados): se for igual à sig da primeira aba carregada E não for a
+      // própria primeira aba, a aba não existe na planilha.
+      if (sigPrimeiraAba === null) {
+        // Esta é a primeira aba — guardar sua sig como referência
+        sigPrimeiraAba = sig;
+      } else if (sig === sigPrimeiraAba) {
+        // Sig igual à da primeira aba → aba não existe, pular
+        console.log(`⏭  Aba "${aba}" não existe na planilha (sig igual à primeira aba)`);
+        continue;
+      }
+
       if (rows.length > 1) {
         const metricas = calcularMetricas(rows);
         cache[aba] = { dados: rows, metricas, updatedAt: new Date().toISOString() };
@@ -119,9 +138,11 @@ async function carregarTodos() {
         console.log(`✅ Aba "${aba}" carregada: ${rows.length} chamados`);
       }
     } catch (e) {
-      // Aba não existe ainda — ignorar silenciosamente
+      // Erro de rede ou outro — ignorar silenciosamente
+      console.log(`⚠️  Erro ao carregar aba "${aba}": ${e.message}`);
     }
   }
+
   // Ordenar por ano/mês
   periodosDisponiveis = disponiveis.sort((a, b) => a.ano !== b.ano ? a.ano - b.ano : a.mes - b.mes);
   console.log(`📊 Períodos disponíveis: ${periodosDisponiveis.map(p => p.label).join(', ')}`);
